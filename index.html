@@ -393,7 +393,13 @@ let cat = 'all';
 const secsEl=document.getElementById('secs');
 function renderSecs(){ secsEl.innerHTML=secs.filter(s=>s[4]!=='menu').map(([k,n,sub])=>`<button class="sec" role="tab" data-s="${k}" aria-selected="${k===sec}"><b>${n}</b><small>${sub}</small></button>`).join(''); const a=secsEl.querySelector('[aria-selected="true"]'); if(a&&secsEl.scrollWidth>secsEl.clientWidth) secsEl.scrollLeft=a.offsetLeft-(secsEl.clientWidth-a.offsetWidth)/2 }
 secsEl.addEventListener('click',e=>{const b=e.target.closest('.sec'); if(!b) return; setSec(b.dataset.s)});
-function setSec(k){ sec=k; cat='all'; LS.set('ermak.sec',sec); renderSecs(); renderChips(); renderList(); window.scrollTo({top:0}) }
+const sectionHash = k => '#section-' + k;
+function setSec(k){
+  const target = sectionHash(k);
+  if(location.hash === target) showSection(k);
+  else location.hash = target;
+}
+function showSection(k){ sec=k; cat='all'; LS.set('ermak.sec',sec); renderSecs(); renderChips(); renderList(); window.scrollTo({top:0}) }
 
 // Latin lookalikes -> Cyrillic so "kv44" finds "KV44", "km13" finds "КМ13"
 const LAT = {a:'а',b:'в',c:'с',e:'е',h:'н',k:'к',m:'м',o:'о',p:'р',t:'т',x:'х',y:'у',v:'в'};
@@ -742,7 +748,7 @@ document.getElementById('scrim').onclick=()=>menu(false);
 document.getElementById('dclose').onclick=()=>menu(false);
 drawer.addEventListener('click',e=>{const b=e.target.closest('.mi'); if(!b) return; if(b.dataset.go==='theme'){ cycleTheme(); return; } if(b.dataset.go==='winter'){ cycleWinter(); return; } menu(false);
   if(['about','install','updates','ask','quiz'].includes(b.dataset.go)){ const g=b.dataset.go; if(location.hash!=='#'+g){pushed=true; location.hash=g} }
-  else { qEl.value=''; cat='all'; if(!det.hidden) location.hash=''; setSec(secs.some(s=>s[0]===b.dataset.go&&s[4]==='menu')?b.dataset.go:secs[0][0]); }
+  else { qEl.value=''; cat='all'; setSec(secs.some(s=>s[0]===b.dataset.go&&s[4]==='menu')?b.dataset.go:secs[0][0]); }
 });
 function openAbout(){
   cur=null;
@@ -902,9 +908,19 @@ applyWinter();
 // search queries -> Metrika
 let sqT=null, sqLast='';
 qEl.addEventListener('input',()=>{ clearTimeout(sqT); sqT=setTimeout(()=>{ const q=qEl.value.trim().toLowerCase().replace(/\s+/g,' '); if(q.length<3||q===sqLast) return; sqLast=q; const found=!!mainEl.querySelector('.item'); try{ if(window.ym) ym(YM,'params',{'Поиск':{[found?'Найдено':'Не найдено']:q}}) }catch(e){} },2000); });
-function route(){ const h=location.hash.slice(1); if(!vw.hidden) closeViewer(); if(h==='about') openAbout(); else if(h==='ask') openAsk(); else if(h==='updates') openUpdates(); else if(h==='install') openInstall(); else if(h==='quiz') openQuiz(); else if(h&&/^[a-z0-9_]+$/i.test(h)) { openDetail(h); const it=items.find(x=>x.id===h); if(it){ const had=recent[0]===h; addRecent(h); if(!had) renderList(); ymHit(h,it.title); } } else closeDetail(); if(['about','ask','updates','install','quiz'].includes(h)) ymHit(h,{about:'Описание',ask:'Вопрос / предложение',updates:'Обновления',install:'Установка',quiz:'Самопроверка'}[h]); }
+function route(){
+  const h=location.hash.slice(1);
+  if(!vw.hidden) closeViewer();
+  const section=secs.find(([key])=>location.hash===sectionHash(key));
+  if(section){
+    closeDetail();
+    showSection(section[0]);
+    return;
+  }
+  if(h==='about') openAbout(); else if(h==='ask') openAsk(); else if(h==='updates') openUpdates(); else if(h==='install') openInstall(); else if(h==='quiz') openQuiz(); else if(h&&/^[a-z0-9_]+$/i.test(h)) { openDetail(h); const it=items.find(x=>x.id===h); if(it){ const had=recent[0]===h; addRecent(h); if(!had) renderList(); ymHit(h,it.title); } } else closeDetail(); if(['about','ask','updates','install','quiz'].includes(h)) ymHit(h,{about:'Описание',ask:'Вопрос / предложение',updates:'Обновления',install:'Установка',quiz:'Самопроверка'}[h]); }
 addEventListener('hashchange',route);
 
+if(!location.hash) history.replaceState(history.state,'',sectionHash(sec));
 renderSecs(); renderChips(); renderList(); route();
 })();
 
